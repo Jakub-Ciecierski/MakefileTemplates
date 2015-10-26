@@ -1,89 +1,4 @@
 ######################################################################
-#--------------------------------------------------------------------#
-#---------------------------- COMMENTS ------------------------------#
-#--------------------------------------------------------------------#
-######################################################################
-
-#---------------------------------------------------------------------
-#
-# Structure.
-#
-# This Makefile is split into:
-# 1) Variables Section
-# 	1.1) Dynamic subsection
-# 	1.2) Static subsection - DO NOT MODIFY
-# 2) Rules Section
-# 	2.1) Static subsection - DO NOT MODIFY
-# 	2.2) Dynamic subsection
-# 3) Dependency Graph - DO NOT MODIFY
-#
-#
-# As a user of this makefile You should not be modifing
-# any of the static subsections.
-#
-#---------------------------------------------------------------------
-#
-# Compilers supported:
-#
-# 1) g++
-# 2) nvcc
-#
-#---------------------------------------------------------------------
-#
-# Supports a particular project structure:
-# Refer to Project Structure section to define the following folders:
-#
-# 1) INC: Header files of this application
-# 2) LIB: Your, local Libraries to be linked with application
-# 3) BLD: Build where your compiled object files are stored
-# 4) SRC: Source files of this application
-# 5) BIN: Binary files, executables of the application
-#
-#---------------------------------------------------------------------
-#
-# Tips:
-#
-# Use '\' to break new line
-# Take special care of whitespaces, it might cause errors.
-# $@ is the value of target
-# $^ is the list of all prerequisites of the rule
-# $< is just the first prerequisite
-#
-#---------------------------------------------------------------------
-#
-# TODO:
-# (Lack of these features might cause bugs)
-#
-# Realese / Debug
-# Support for gcc for .c files
-# Currently only one extension per XX_EXT variable applies
-# Support for unit tests
-# Variable printouts
-# Add usage
-#
-#---------------------------------------------------------------------
-#
-# Author:
-#
-# github.com/Jakub-Ciecierski
-# jakub.ciecier@gmail.com
-#
-#---------------------------------------------------------------------
-#
-# For further information refer to:
-# http://www.gnu.org/software/make/manual/make.html
-#
-#---------------------------------------------------------------------
-#
-# Changes log:
-# 01.07.2015 - Created
-# 26.10.2015 - Added Unit Test rule
-#
-#
-#---------------------------------------------------------------------
-
-
-######################################################################
 #--------------------------------1-----------------------------------#
 #------------------------ VARIABLES SECTION -------------------------#
 #--------------------------------------------------------------------#
@@ -93,10 +8,14 @@
 #------------------ DYNAMIC SUBSECTION - CAN MODIFY -----------------#
 ######################################################################
 
+#---------------- UNIT TESTS ------------------#
+
+# Path to root of googletest project
+GTEST_ROOT = '../../googletest'
 
 #--------------- APPLICATION NAME -------------#
 
-APP_NAME = patt_rec
+APP_NAME = utest
 
 #--------------- FILE EXTENSIONS --------------#
 
@@ -117,8 +36,6 @@ OBJ = build
 SRC = src
 # Executables of your Application
 BIN = bin
-# Unit tests
-TST = test
 
 #------------- EXTERNAL MAKEFILES -------------#
 
@@ -127,20 +44,18 @@ TST = test
 # Can be used to compile your static libraries before linking.
 # Surrounded the path with '...' and separate different paths
 # with a space.
-MAKE_EXTERNAL =
+MAKE_EXTERNAL = $(GTEST_ROOT)/make/
 
 #---------------- LIBRARIES -------------------#
 
 # Paths and names of libraries to link with
-LIBS += -L /opt/cuda/lib64 \
-		-L /usr/local/cuda/lib64 \
-		-lGL -lglut -lGLEW -lcudart -lcuda
+LIBS += $(GTEST_ROOT)/make/gtest_main.a -lpthread
+		
 
 #----------------- INCLUDES -------------------#
 
 # Paths to all Includes
-INCLUDES += -I /usr/local/cuda/include \
-    		-I /opt/cuda/include
+INCLUDES += -I $(GTEST_ROOT)/include \
 
 #------------------- FLAGS --------------------#
 
@@ -150,23 +65,22 @@ L_FLAGS +=
 C_FLAGS += -g -Wall -std=c++11
 NVCC_FLAGS += -arch=sm_20
 
-
 #----------------- PRINT OUTS -----------------#
 
 # The separator will be printed between compiling objects
 INFO_SEPARATOR = "-----------------------------------------------------"
 INFO_FILLER = "\t\t\t\t"
 
-
 ######################################################################
 #------------------ STATIC SUBSECTION - DO NOT MODIFY ---------------#
 ######################################################################
 
 LIBS += -L ${LIB}
-INCLUDES += -I ${INC}
+# It is not a mistake to include source files in unit tests!
+INCLUDES += -I ${INC} -I ../$(INC) -I ../$(SRC)
 
 CC = g++
-NVCC = nvcc
+NVCC = nvcc 
 
 L_FLAGS += ${LIBS}
 C_FLAGS += ${INCLUDES} -MMD
@@ -179,7 +93,7 @@ NVCC_FLAGS +=
 CPP_SOURCES = $(shell find ${SRC} -name *${CPP_EXT} 2>/dev/null)
 CUDA_SOURCES = $(shell find ${SRC} -name *${CUDA_EXT} 2>/dev/null)
 
-# List of all subdirectories in source directory
+# List of all subdirectories in source directory 
 MODULES = $(shell find ${SRC} -type d 2>/dev/null)
 
 # All objects to be compiled
@@ -201,19 +115,19 @@ VPATH = ${MODULES}
 
 #------------------ DEFAULT -------------------#
 
-# All
-all: rel utest
-
 # Release rule
-rel: $(MAKE_EXTERNAL) info_prefix init ${APP_NAME} info_suffix
+all: link run
 
-# Debug rule
-debug:
-	@echo 'Debug TODO'
+# Links, does not run
+link: $(MAKE_EXTERNAL) info_prefix init ${APP_NAME} info_suffix
 
-# Unit Test rule, assumes that $(TST) has a makefile inside
-utest:
-	@$(MAKE) -C $(TST)
+# Runs the tests
+run:
+	@echo ${INFO_SEPARATOR}
+	@echo 'Running Unit Tests'
+	@echo ${INFO_SEPARATOR}
+	@$(BIN)/$(APP_NAME)
+	@echo ${INFO_SEPARATOR}
 
 #------------------ LINKER --------------------#
 
@@ -240,6 +154,7 @@ ${OBJ}/%.o: %${CUDA_EXT}
 
 # Make external makefiles
 $(MAKE_EXTERNAL):
+	@echo
 	@echo ${INFO_SEPARATOR}
 	@echo ${INFO_SEPARATOR}
 	@echo 'Compiling External: $@'
@@ -255,7 +170,7 @@ $(MAKE_EXTERNAL):
 init:
 	@mkdir -p ${OBJ} ${BIN} ${SRC} ${LIB} ${INC} ${TST}
 
-clean:
+clean: 
 	@$(RM) *.o *~ ${OBJ}/*.o ${OBJ}/*.d ${OBJ}/*~ ${BIN}/*
 
 
@@ -272,9 +187,9 @@ info_prefix:
 	@echo
 	@echo ${INFO_SEPARATOR}
 	@echo ${INFO_SEPARATOR}
-	@echo
+	@echo 
 	@echo ${INFO_FILLER}"MAKING:" ${APP_NAME}
-	@echo
+	@echo 
 	@echo
 
 info_suffix:
@@ -294,7 +209,7 @@ info_suffix:
 ######################################################################
 
 #--------------- DEPENDENCY GRAPH -------------#
-
+	
 # Automatic dependency graph generation
 # Must be inserted at the end of the makefile (TODO verify)
 -include $(OBJECTS:.o=.d)
